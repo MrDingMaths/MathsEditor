@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 7 — clipboard integration test harness</title>
+  <!-- Load order: Compute Engine → MathLive → config → serialiser → clipboard → catalogue → palette → maths-editor -->
+  <script src="../vendor/compute-engine.min.js"></script>
+  <script src="../vendor/mathlive.min.js"></script>
+  <script>MathfieldElement.soundsDirectory = null;</script>
+  <script src="../serialiser.js"></script>
+  <script src="../clipboard.js"></script>
+  <script src="../palette/catalogue.js"></script>
+  <script src="../palette/palette.js"></script>
+  <link rel="stylesheet" href="../vendor/mathlive-static.css">
+  <link rel="stylesheet" href="../maths-editor.css">
+  <link rel="stylesheet" href="../palette/palette.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #f5f5f5;
+    }
+
+    h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1rem; margin: 1.25rem 0 0.4rem; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    maths-editor {
+      --me-font-size: 0.9375rem;
+      --me-min-height: 5rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+    }
+
+    button {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #f9fafb;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #e5e7eb; }
+    button:active { background: #d1d5db; }
+
+    button.primary {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+
+    button.danger {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 4rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 0.4rem 0.5rem;
+      resize: vertical;
+    }
+
+    pre {
+      margin: 0.5rem 0 0;
+      padding: 0.5rem;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 1.5rem;
+    }
+
+    #log {
+      font-size: 0.8125rem;
+      font-family: monospace;
+      max-height: 12rem;
+      overflow-y: auto;
+      background: #111827;
+      color: #f9fafb;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+    }
+
+    #log .entry { padding: 1px 0; }
+    #log .ts { color: #6b7280; margin-right: 0.5rem; }
+    #log .ev-input   { color: #60a5fa; }
+    #log .ev-change  { color: #c084fc; }
+    #log .ev-label   { font-weight: 600; margin-right: 0.25rem; }
+    #log .count      { color: #fbbf24; font-size: 0.75rem; margin-left: 0.5rem; }
+  </style>
+  <script type="module" src="../maths-editor.js"></script>
+</head>
+<body>
+
+<h1>Phase 7 — Clipboard Integration</h1>
+<p style="margin:0 0 1rem;color:#6b7280;font-size:0.875rem;">
+  Two editors side by side. Select content in <strong>Source</strong>, copy or cut it,
+  then paste into <strong>Target</strong>. The "Read clipboard" button shows what was
+  written to the clipboard.
+</p>
+
+<!-- ── Editors ─────────────────────────────────────────────────────────── -->
+<div class="editor-grid">
+
+  <div class="card">
+    <label>Source</label>
+    <maths-editor id="source"></maths-editor>
+    <div class="controls">
+      <button class="primary" id="btn-copy">Copy selection from Source</button>
+      <button class="danger"  id="btn-cut">Cut selection from Source</button>
+      <button id="btn-rt-src">Round-trip Source</button>
+    </div>
+    <pre id="rt-src-out" title="Round-trip output"></pre>
+  </div>
+
+  <div class="card">
+    <label>Target</label>
+    <maths-editor id="target"></maths-editor>
+    <div class="controls">
+      <button class="primary" id="btn-paste">Paste into Target at cursor</button>
+      <button id="btn-clear-target">Clear Target</button>
+      <button id="btn-rt-tgt">Round-trip Target</button>
+    </div>
+    <pre id="rt-tgt-out" title="Round-trip output"></pre>
+  </div>
+
+</div>
+
+<!-- ── Clipboard inspector ──────────────────────────────────────────────── -->
+<div class="card">
+  <h2 style="margin-top:0;">Clipboard inspector</h2>
+  <div class="controls">
+    <button id="btn-read-cb">Read clipboard</button>
+  </div>
+  <pre id="cb-out">—</pre>
+</div>
+
+<!-- ── Manual paste source ─────────────────────────────────────────────── -->
+<div class="card">
+  <h2 style="margin-top:0;">Manual paste source</h2>
+  <p style="margin:0 0 0.5rem;font-size:0.875rem;color:#6b7280;">
+    Type or paste a <code>$...$</code>-delimited string here, then use
+    <kbd>Ctrl+C</kbd> / <kbd>⌘C</kbd> to copy it from this textarea,
+    and <kbd>Ctrl+V</kbd> / <kbd>⌘V</kbd> to paste into Target.
+    Confirms that non-editor clipboard sources flow through correctly.
+  </p>
+  <textarea id="manual-src" spellcheck="false">Hello $x^2+1$ world
+Line two with $\frac{a}{b}$ here</textarea>
+</div>
+
+<!-- ── Event log ───────────────────────────────────────────────────────── -->
+<div class="card">
+  <h2 style="margin-top:0;">Event log <span id="input-count" style="font-weight:normal;font-size:0.8125rem;color:#6b7280;"></span></h2>
+  <div id="log"></div>
+  <div class="controls" style="margin-top:0.5rem;">
+    <button id="btn-clear-log">Clear log</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const source = document.getElementById('source');
+  const target = document.getElementById('target');
+  const log    = document.getElementById('log');
+  const cbOut  = document.getElementById('cb-out');
+  const countEl = document.getElementById('input-count');
+
+  // Pre-load Source with mixed content
+  customElements.whenDefined('maths-editor').then(() => {
+    source.value = 'Hello $x^2+1$ world\nLine two with $\\frac{a}{b}$ here';
+  });
+
+  // ── Event log ────────────────────────────────────────────────────────
+
+  let inputCount = 0;
+
+  function ts() {
+    const d = new Date();
+    return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function logEntry(editorLabel, evName, detail) {
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    const cls = evName === 'input' ? 'ev-input' : 'ev-change';
+    entry.innerHTML =
+      `<span class="ts">${ts()}</span>` +
+      `<span class="${cls}"><span class="ev-label">[${editorLabel}]</span>${evName}</span>` +
+      (detail ? ` <span style="color:#9ca3af">${escHtml(JSON.stringify(detail).slice(0, 120))}</span>` : '');
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  ['input', 'change'].forEach(evName => {
+    source.addEventListener(evName, e => {
+      if (evName === 'input') { inputCount++; updateCount(); }
+      logEntry('Source', evName, e.detail);
+    });
+    target.addEventListener(evName, e => {
+      if (evName === 'input') { inputCount++; updateCount(); }
+      logEntry('Target', evName, e.detail);
+    });
+  });
+
+  function updateCount() {
+    countEl.textContent = `(${inputCount} input event${inputCount === 1 ? '' : 's'} total)`;
+  }
+
+  // ── Buttons ──────────────────────────────────────────────────────────
+
+  document.getElementById('btn-copy').addEventListener('click', () => {
+    source.focus();
+    document.execCommand('copy');
+  });
+
+  document.getElementById('btn-cut').addEventListener('click', () => {
+    source.focus();
+    document.execCommand('cut');
+  });
+
+  document.getElementById('btn-paste').addEventListener('click', () => {
+    target.focus();
+    document.execCommand('paste');
+  });
+
+  document.getElementById('btn-clear-target').addEventListener('click', () => {
+    target.clear();
+  });
+
+  document.getElementById('btn-read-cb').addEventListener('click', () => {
+    if (!navigator.clipboard?.readText) {
+      cbOut.textContent = '(navigator.clipboard.readText not available — check permissions or use HTTPS)';
+      return;
+    }
+    navigator.clipboard.readText().then(text => {
+      cbOut.textContent = text || '(empty)';
+    }).catch(err => {
+      cbOut.textContent = 'Error: ' + err.message;
+    });
+  });
+
+  // Round-trip checks
+  document.getElementById('btn-rt-src').addEventListener('click', () => {
+    const before = source.value;
+    source.value = before;
+    const after = source.value;
+    const out = document.getElementById('rt-src-out');
+    if (before === after) {
+      out.textContent = '✓ Stable\n' + before;
+      out.style.color = '#166534';
+    } else {
+      out.textContent = '✗ Mismatch\nBefore: ' + before + '\nAfter:  ' + after;
+      out.style.color = '#991b1b';
+    }
+  });
+
+  document.getElementById('btn-rt-tgt').addEventListener('click', () => {
+    const before = target.value;
+    target.value = before;
+    const after = target.value;
+    const out = document.getElementById('rt-tgt-out');
+    if (before === after) {
+      out.textContent = '✓ Stable\n' + before;
+      out.style.color = '#166534';
+    } else {
+      out.textContent = '✗ Mismatch\nBefore: ' + before + '\nAfter:  ' + after;
+      out.style.color = '#991b1b';
+    }
+  });
+
+  document.getElementById('btn-clear-log').addEventListener('click', () => {
+    log.textContent = '';
+    inputCount = 0;
+    updateCount();
+  });
+}());
+</script>
+
+</body>
+</html>

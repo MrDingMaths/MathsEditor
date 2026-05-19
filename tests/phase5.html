@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 5 — symbol palette test harness</title>
+  <!-- Load order: Compute Engine → MathLive → config → serialiser → catalogue → palette → maths-editor -->
+  <script src="../vendor/compute-engine.min.js"></script>
+  <script src="../vendor/mathlive.min.js"></script>
+  <script>MathfieldElement.soundsDirectory = null;</script>
+  <script src="../serialiser.js"></script>
+  <script src="../palette/catalogue.js"></script>
+  <script src="../palette/palette.js"></script>
+  <link rel="stylesheet" href="../vendor/mathlive-static.css">
+  <link rel="stylesheet" href="../maths-editor.css">
+  <link rel="stylesheet" href="../palette/palette.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      max-width: 860px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #f5f5f5;
+    }
+
+    h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1rem; margin: 1.25rem 0 0.4rem; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+
+    maths-editor {
+      --me-font-size: 0.9375rem;
+      --me-min-height: 5rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+    }
+
+    button {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #f9fafb;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #e5e7eb; }
+    button:active { background: #d1d5db; }
+
+    button.primary {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+
+    button.primary:hover { background: #dbeafe; }
+
+    pre {
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 2rem;
+      max-height: 12rem;
+      overflow-y: auto;
+    }
+
+    #rt-result {
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      min-height: 2rem;
+    }
+
+    #rt-result.pass { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    #rt-result.fail { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    #rt-result.idle { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+
+    #event-log { color: #374151; }
+    .log-input         { color: #1d4ed8; }
+    .log-change        { color: #7c3aed; }
+    .log-maths-input   { color: #059669; }
+    .log-palette-open  { color: #d97706; }
+    .log-palette-close { color: #6b7280; }
+
+    .kbd {
+      display: inline-block;
+      padding: 0.1em 0.4em;
+      border: 1px solid #d1d5db;
+      border-radius: 3px;
+      background: #f9fafb;
+      font-family: monospace;
+      font-size: 0.875em;
+    }
+
+    /* ── Catalogue inspection table ─────────────────────────────────────────── */
+
+    .catalogue-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .catalogue-table th {
+      text-align: left;
+      padding: 0.3rem 0.5rem;
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .catalogue-table td {
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: top;
+    }
+
+    .catalogue-table tr:last-child td { border-bottom: none; }
+
+    .catalogue-table code {
+      background: #f3f4f6;
+      padding: 0.1em 0.3em;
+      border-radius: 2px;
+      font-size: 0.8125rem;
+      word-break: break-all;
+    }
+
+    .cat-badge {
+      display: inline-block;
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Phase 5 — symbol palette test harness</h1>
+<p>
+  Click the editor, type some text, press <span class="kbd">Tab</span> to insert a maths island,
+  then press <span class="kbd">Tab</span> again to open the symbol palette.
+  Use <span class="kbd">↑</span> / <span class="kbd">↓</span> to navigate,
+  <span class="kbd">Enter</span> to insert, <span class="kbd">Esc</span> to cancel.
+</p>
+
+<div class="card">
+  <label for="editor">Editor</label>
+  <maths-editor id="editor"
+    placeholder="Click here, Tab to enter maths. Tab again to open the symbol palette. Enter to insert. Esc to cancel.">
+  </maths-editor>
+
+  <div class="controls">
+    <button id="btn-open-palette" class="primary">Open palette at active math-field</button>
+    <button id="btn-close-palette">Close palette</button>
+    <button id="btn-insert-math">Insert math island</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Round-trip check (Phase 4)</h2>
+  <div id="rt-result" class="idle">— press "Round-trip check" to verify palette-built documents serialise cleanly —</div>
+  <div class="controls">
+    <button id="btn-roundtrip" class="primary">Round-trip check</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Live <code>.value</code></h2>
+  <pre id="live-value"></pre>
+</div>
+
+<div class="card">
+  <h2>Event log</h2>
+  <pre id="event-log">— no events yet —</pre>
+</div>
+
+<div class="card">
+  <h2>Catalogue inspection (all entries)</h2>
+  <table class="catalogue-table" id="catalogue-table">
+    <thead>
+      <tr>
+        <th>id</th>
+        <th>name</th>
+        <th>category</th>
+        <th>latex (inserted)</th>
+      </tr>
+    </thead>
+    <tbody id="catalogue-tbody"></tbody>
+  </table>
+</div>
+
+<script type="module" src="../maths-editor.js"></script>
+<script>
+  'use strict';
+
+  const editor    = document.getElementById('editor');
+  const liveValue = document.getElementById('live-value');
+  const eventLog  = document.getElementById('event-log');
+  const rtResult  = document.getElementById('rt-result');
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  const MAX_LOG = 200;
+  let logLines = [];
+
+  function ts() {
+    const d = new Date();
+    return [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map(n => String(n).padStart(2, '0')).join(':') +
+      '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function appendLog(text, cls) {
+    if (logLines.length === 1 && logLines[0].text === '— no events yet —') logLines = [];
+    logLines.push({ text: `[${ts()}] ${text}`, cls });
+    if (logLines.length > MAX_LOG) logLines.shift();
+    eventLog.innerHTML = logLines
+      .map(l => `<span class="${l.cls}">${escHtml(l.text)}</span>`)
+      .join('\n');
+    eventLog.scrollTop = eventLog.scrollHeight;
+  }
+
+  function updateLive() {
+    liveValue.textContent = editor.value;
+  }
+
+  // ── Editor events ─────────────────────────────────────────────────────────
+
+  editor.addEventListener('input', (e) => {
+    updateLive();
+    appendLog(`input  — value: ${JSON.stringify(e.detail.value)}`, 'log-input');
+  });
+
+  editor.addEventListener('change', (e) => {
+    appendLog(`change — value: ${JSON.stringify(e.detail.value)}`, 'log-change');
+  });
+
+  editor.addEventListener('maths-input', (e) => {
+    const { index, latex } = e.detail;
+    appendLog(`maths-input — index:${index} latex:${JSON.stringify(latex)}`, 'log-maths-input');
+  });
+
+  // ── Palette event log shim ────────────────────────────────────────────────
+  // Wrap the Palette singleton to emit log entries on open/close.
+  // Must run after maths-editor.js module loads.
+
+  window.addEventListener('load', () => {
+    const P = window.MathsEditor && window.MathsEditor.Palette;
+    if (!P) return;
+
+    const _origOpen  = P.open.bind(P);
+    const _origClose = P.close.bind(P);
+
+    P.open = function (anchor, options) {
+      appendLog('palette-open', 'log-palette-open');
+      const wrappedOptions = {
+        onInsert: options.onInsert,
+        onClose: (reason) => {
+          appendLog(`palette-close  reason: ${reason}`, 'log-palette-close');
+          options.onClose(reason);
+        },
+      };
+      _origOpen(anchor, wrappedOptions);
+    };
+
+    P.close = function () {
+      _origClose();
+    };
+  });
+
+  // ── Buttons ───────────────────────────────────────────────────────────────
+
+  document.getElementById('btn-open-palette').addEventListener('click', () => {
+    // Find the focused math-field, or the first one in the editor
+    const active = document.activeElement;
+    const isMathField = active?.tagName?.toLowerCase() === 'math-field'
+                        && editor.contains(active);
+    const target = isMathField
+      ? active
+      : editor.querySelector('math-field');
+
+    if (!target) {
+      appendLog('No math-field found — Tab into the editor first to create one.', 'log-palette-close');
+      return;
+    }
+
+    if (!window.MathsEditor?.Palette) {
+      appendLog('Palette not loaded.', 'log-palette-close');
+      return;
+    }
+
+    window.MathsEditor.Palette.open(target, {
+      onInsert: (latex) => {
+        target.executeCommand(['insert', latex]);
+      },
+      onClose: (_reason) => {
+        target.focus();
+      },
+    });
+  });
+
+  document.getElementById('btn-close-palette').addEventListener('click', () => {
+    window.MathsEditor?.Palette?.close();
+  });
+
+  document.getElementById('btn-insert-math').addEventListener('click', () => {
+    editor.focus();
+    editor.insertMath('');
+  });
+
+  document.getElementById('btn-roundtrip').addEventListener('click', () => {
+    const first  = editor.value;
+    editor.value = first;
+    const second = editor.value;
+
+    if (first === second) {
+      rtResult.className   = 'pass';
+      rtResult.textContent = 'PASS — value is stable after round-trip.';
+    } else {
+      rtResult.className   = 'fail';
+      rtResult.innerHTML   =
+        '<strong>FAIL</strong> — values differ after round-trip.<br>' +
+        '<br><strong>First read:</strong><br><code>' + escHtml(JSON.stringify(first)) + '</code>' +
+        '<br><strong>After reload:</strong><br><code>' + escHtml(JSON.stringify(second)) + '</code>';
+    }
+    updateLive();
+  });
+
+  // ── Catalogue inspection panel ────────────────────────────────────────────
+
+  window.addEventListener('load', () => {
+    const catalogue = window.MathsEditor?.catalogue || [];
+    const tbody = document.getElementById('catalogue-tbody');
+    tbody.innerHTML = catalogue.map(entry => `
+      <tr>
+        <td><code>${escHtml(entry.id)}</code></td>
+        <td>${escHtml(entry.name)}</td>
+        <td><span class="cat-badge">${escHtml(entry.category)}</span></td>
+        <td><code>${escHtml(entry.latex)}</code></td>
+      </tr>
+    `).join('');
+  });
+
+  // ── Initial state ─────────────────────────────────────────────────────────
+
+  updateLive();
+</script>
+</body>
+</html>

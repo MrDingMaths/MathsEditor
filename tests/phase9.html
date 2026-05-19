@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Phase 9 — Recognition Extension Hooks</title>
+  <link rel="stylesheet" href="../vendor/mathlive-static.css">
+  <link rel="stylesheet" href="../maths-editor.css">
+  <link rel="stylesheet" href="../palette/palette.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; font-size: 14px; margin: 0; padding: 1rem; background: #f9fafb; color: #1a1a1a; }
+    h1 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+    h2 { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; margin: 0 0 0.5rem; }
+    .editor-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem; margin-bottom: 1rem; }
+    maths-editor { display: block; }
+    .panels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; }
+    .btn-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
+    .btn-group-label { font-size: 0.75rem; color: #6b7280; font-weight: 600; margin-bottom: 0.15rem; }
+    button { padding: 0.3rem 0.6rem; border: 1px solid #d1d5db; border-radius: 4px; background: #f3f4f6; cursor: pointer; font-size: 0.8rem; text-align: left; }
+    button:hover { background: #e5e7eb; }
+    button.active { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    .status-row { display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem; margin-bottom: 0.25rem; }
+    .status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #f3f4f6; border: 1px solid #e5e7eb; }
+    .status-badge.inflight { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .status-badge.idle { background: #f3f4f6; color: #6b7280; }
+    .log { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem; max-height: 280px; overflow-y: auto; }
+    .log-entry { font-size: 0.78rem; font-family: monospace; padding: 0.2rem 0; border-bottom: 1px solid #f3f4f6; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-entry .ts { color: #9ca3af; margin-right: 0.4rem; }
+    .log-entry.start { color: #1d4ed8; }
+    .log-entry.success { color: #065f46; }
+    .log-entry.error { color: #991b1b; }
+    .log-entry.cancel { color: #92400e; }
+    .log-entry.info { color: #374151; }
+    .log-clear { float: right; font-size: 0.75rem; color: #6b7280; cursor: pointer; border: none; background: none; padding: 0; }
+    .reg-indicator { font-size: 0.75rem; margin-top: 0.25rem; }
+    .reg-indicator span { font-weight: 600; }
+    .reg-indicator.has-provider span { color: #065f46; }
+    .reg-indicator.no-provider span { color: #9ca3af; }
+    .two-editors { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .two-editors .label { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.3rem; }
+    .two-editors .editor-wrap { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+<h1>Phase 9 — Recognition Extension Hooks</h1>
+
+<div class="editor-wrap">
+  <maths-editor id="editor" placeholder="Editor A — focus here or in an island before triggering recognition…"></maths-editor>
+</div>
+
+<div class="panels">
+
+  <!-- Providers panel -->
+  <div class="panel">
+    <h2>Providers</h2>
+
+    <div class="btn-group-label">Image provider</div>
+    <div class="btn-group" id="img-provider-btns">
+      <button data-action="reg-image-success">Success (800 ms)</button>
+      <button data-action="reg-image-error">Error</button>
+      <button data-action="reg-image-slow">Slow (5 s)</button>
+      <button data-action="reg-image-timeout">Timeout (never)</button>
+      <button data-action="reg-image-invalid">Invalid result</button>
+      <button data-action="reg-image-nomatch">No match</button>
+      <button data-action="clear-image">Clear image provider</button>
+    </div>
+    <div id="img-reg-indicator" class="reg-indicator no-provider">Image: <span>none</span></div>
+
+    <br>
+
+    <div class="btn-group-label">Ink provider</div>
+    <div class="btn-group" id="ink-provider-btns">
+      <button data-action="reg-ink-success">Success (800 ms)</button>
+      <button data-action="reg-ink-error">Error</button>
+      <button data-action="reg-ink-slow">Slow (5 s)</button>
+      <button data-action="reg-ink-timeout">Timeout (never)</button>
+      <button data-action="reg-ink-invalid">Invalid result</button>
+      <button data-action="reg-ink-nomatch">No match</button>
+      <button data-action="clear-ink">Clear ink provider</button>
+    </div>
+    <div id="ink-reg-indicator" class="reg-indicator no-provider">Ink: <span>none</span></div>
+  </div>
+
+  <!-- Triggers panel -->
+  <div class="panel">
+    <h2>Trigger</h2>
+
+    <div class="btn-group-label">Image</div>
+    <div class="btn-group">
+      <button data-action="recognise-image-utility">Recognise sample image (utility)</button>
+      <button data-action="recognise-image-insert">Recognise sample image (insert)</button>
+    </div>
+
+    <div class="btn-group-label">Ink</div>
+    <div class="btn-group">
+      <button data-action="recognise-ink-utility">Recognise sample ink (utility)</button>
+      <button data-action="recognise-ink-insert">Recognise sample ink (insert)</button>
+    </div>
+
+    <div class="btn-group-label">Cancel</div>
+    <div class="btn-group">
+      <button data-action="cancel-image">Cancel image</button>
+      <button data-action="cancel-ink">Cancel ink</button>
+      <button data-action="cancel-all">Cancel all</button>
+    </div>
+
+    <div class="btn-group-label">Misc</div>
+    <div class="btn-group">
+      <button data-action="no-provider-test">Recognise with no provider (error test)</button>
+      <button data-action="clear-editor">Clear editor</button>
+    </div>
+  </div>
+
+  <!-- Status panel -->
+  <div class="panel">
+    <h2>Status</h2>
+    <div class="status-row">
+      <span>Image:</span>
+      <span id="img-status" class="status-badge idle">idle</span>
+      <span id="img-elapsed" style="font-size:0.75rem;color:#6b7280;"></span>
+    </div>
+    <div class="status-row">
+      <span>Ink:</span>
+      <span id="ink-status" class="status-badge idle">idle</span>
+      <span id="ink-elapsed" style="font-size:0.75rem;color:#6b7280;"></span>
+    </div>
+
+    <br>
+    <h2>Two-editor isolation test</h2>
+    <p style="font-size:0.75rem;color:#6b7280;margin:0 0 0.5rem;">
+      Editor B below has no providers. Registering providers on Editor A must not affect Editor B.
+    </p>
+    <div class="two-editors">
+      <div>
+        <div class="label">Editor A (above)</div>
+        <div style="font-size:0.75rem;color:#6b7280;">Uses the Providers panel above.</div>
+      </div>
+      <div>
+        <div class="label">Editor B (independent)</div>
+        <div class="editor-wrap">
+          <maths-editor id="editor-b" placeholder="Editor B — no providers registered"></maths-editor>
+        </div>
+        <button data-action="test-editor-b" style="margin-top:0.35rem;">Recognise on Editor B (expect error)</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
+  <h2 style="margin:0;">Event log</h2>
+  <button class="log-clear" id="clear-log">Clear</button>
+</div>
+<div class="log" id="log"></div>
+
+<script src="../vendor/compute-engine.min.js"></script>
+<script src="../vendor/mathlive.min.js"></script>
+<script>MathfieldElement.soundsDirectory = null;</script>
+<script src="../serialiser.js"></script>
+<script src="../clipboard.js"></script>
+<script src="../palette/catalogue.js"></script>
+<script src="../palette/palette.js"></script>
+<script type="module" src="../maths-editor.js"></script>
+<script src="../recognition.js"></script>
+
+<script>
+  // ---------------------------------------------------------------------------
+  // Sample inputs baked in (content ignored by stubs)
+  // ---------------------------------------------------------------------------
+
+  // 1x1 transparent PNG as a data URL → Blob
+  const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  let sampleBlob = null;
+  fetch(PNG_DATA_URL).then(r => r.blob()).then(b => { sampleBlob = b; });
+
+  // Hard-coded stroke array for fake ink
+  const sampleStrokes = [
+    [
+      { x: 10, y: 50, t: 0 },
+      { x: 20, y: 30, t: 40 },
+      { x: 30, y: 10, t: 80 },
+      { x: 40, y: 30, t: 120 },
+      { x: 50, y: 50, t: 160 },
+    ],
+    [
+      { x: 20, y: 50, t: 200, pressure: 0.8 },
+      { x: 40, y: 50, t: 240, pressure: 0.8 },
+    ],
+  ];
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+
+  const editor = document.getElementById('editor');
+  const editorB = document.getElementById('editor-b');
+  let imgInFlight = false;
+  let inkInFlight = false;
+  let imgStartTime = null;
+  let inkStartTime = null;
+
+  // ---------------------------------------------------------------------------
+  // Logging
+  // ---------------------------------------------------------------------------
+
+  const log = document.getElementById('log');
+
+  function addLog(cls, msg) {
+    const now = new Date().toLocaleTimeString('en-AU', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const ms = String(new Date().getMilliseconds()).padStart(3, '0');
+    const div = document.createElement('div');
+    div.className = `log-entry ${cls}`;
+    div.innerHTML = `<span class="ts">${now}.${ms}</span>${escapeHtml(msg)}`;
+    log.prepend(div);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  document.getElementById('clear-log').addEventListener('click', () => { log.innerHTML = ''; });
+
+  // ---------------------------------------------------------------------------
+  // Editor lifecycle events
+  // ---------------------------------------------------------------------------
+
+  editor.addEventListener('recognition-start', e => {
+    addLog('start', `recognition-start  ${JSON.stringify(e.detail)}`);
+    if (e.detail.kind === 'image') { imgInFlight = true; imgStartTime = Date.now(); }
+    else { inkInFlight = true; inkStartTime = Date.now(); }
+  });
+
+  editor.addEventListener('recognition-success', e => {
+    addLog('success', `recognition-success  ${JSON.stringify(e.detail)}`);
+    if (e.detail.kind === 'image') { imgInFlight = false; imgStartTime = null; }
+    else { inkInFlight = false; inkStartTime = null; }
+  });
+
+  editor.addEventListener('recognition-error', e => {
+    const detail = { kind: e.detail.kind, error: String(e.detail.error), durationMs: e.detail.durationMs };
+    addLog('error', `recognition-error  ${JSON.stringify(detail)}`);
+    if (e.detail.kind === 'image') { imgInFlight = false; imgStartTime = null; }
+    else { inkInFlight = false; inkStartTime = null; }
+  });
+
+  editor.addEventListener('recognition-cancel', e => {
+    addLog('cancel', `recognition-cancel  ${JSON.stringify(e.detail)}`);
+    if (e.detail.kind === 'image') { imgInFlight = false; imgStartTime = null; }
+    else { inkInFlight = false; inkStartTime = null; }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Status panel ticker
+  // ---------------------------------------------------------------------------
+
+  const imgStatus = document.getElementById('img-status');
+  const imgElapsed = document.getElementById('img-elapsed');
+  const inkStatus = document.getElementById('ink-status');
+  const inkElapsed = document.getElementById('ink-elapsed');
+
+  setInterval(() => {
+    if (imgInFlight) {
+      imgStatus.textContent = 'in-flight';
+      imgStatus.className = 'status-badge inflight';
+      imgElapsed.textContent = imgStartTime ? `${Date.now() - imgStartTime} ms` : '';
+    } else {
+      imgStatus.textContent = 'idle';
+      imgStatus.className = 'status-badge idle';
+      imgElapsed.textContent = '';
+    }
+    if (inkInFlight) {
+      inkStatus.textContent = 'in-flight';
+      inkStatus.className = 'status-badge inflight';
+      inkElapsed.textContent = inkStartTime ? `${Date.now() - inkStartTime} ms` : '';
+    } else {
+      inkStatus.textContent = 'idle';
+      inkStatus.className = 'status-badge idle';
+      inkElapsed.textContent = '';
+    }
+  }, 100);
+
+  // ---------------------------------------------------------------------------
+  // Provider indicator helpers
+  // ---------------------------------------------------------------------------
+
+  function setImgIndicator(name) {
+    const el = document.getElementById('img-reg-indicator');
+    el.querySelector('span').textContent = name || 'none';
+    el.className = `reg-indicator ${name ? 'has-provider' : 'no-provider'}`;
+    document.querySelectorAll('#img-provider-btns button').forEach(b => b.classList.remove('active'));
+  }
+
+  function setInkIndicator(name) {
+    const el = document.getElementById('ink-reg-indicator');
+    el.querySelector('span').textContent = name || 'none';
+    el.className = `reg-indicator ${name ? 'has-provider' : 'no-provider'}`;
+    document.querySelectorAll('#ink-provider-btns button').forEach(b => b.classList.remove('active'));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Button actions
+  // ---------------------------------------------------------------------------
+
+  function makeImageProvider(mode) {
+    const configs = {
+      success: { kind: 'image', delay: 800, response: '\\frac{1}{2}', failureMode: null, name: 'StubImage-Success' },
+      error:   { kind: 'image', delay: 0,   response: '',              failureMode: 'error',   name: 'StubImage-Error' },
+      slow:    { kind: 'image', delay: 5000, response: '\\sqrt{x^2+1}', failureMode: null,    name: 'StubImage-Slow' },
+      timeout: { kind: 'image', delay: 0,   response: '',              failureMode: 'timeout', name: 'StubImage-Timeout' },
+      invalid: { kind: 'image', delay: 800, response: '',              failureMode: 'invalid', name: 'StubImage-Invalid' },
+      nomatch: { kind: 'image', delay: 800, response: '',              failureMode: 'no-match',name: 'StubImage-NoMatch' },
+    };
+    return window.MathsEditor.makeStubProvider(configs[mode]);
+  }
+
+  function makeInkProvider(mode) {
+    const configs = {
+      success: { kind: 'ink', delay: 800, response: '\\int_0^1 x\\,dx', failureMode: null,    name: 'StubInk-Success' },
+      error:   { kind: 'ink', delay: 0,   response: '',                  failureMode: 'error',   name: 'StubInk-Error' },
+      slow:    { kind: 'ink', delay: 5000, response: '\\sum_{n=1}^{\\infty}\\frac{1}{n^2}', failureMode: null, name: 'StubInk-Slow' },
+      timeout: { kind: 'ink', delay: 0,   response: '',                  failureMode: 'timeout', name: 'StubInk-Timeout' },
+      invalid: { kind: 'ink', delay: 800, response: '',                  failureMode: 'invalid', name: 'StubInk-Invalid' },
+      nomatch: { kind: 'ink', delay: 800, response: '',                  failureMode: 'no-match',name: 'StubInk-NoMatch' },
+    };
+    return window.MathsEditor.makeStubProvider(configs[mode]);
+  }
+
+  document.body.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    switch (action) {
+
+      // Provider registration — image
+      case 'reg-image-success': { const p = makeImageProvider('success'); editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'reg-image-error':   { const p = makeImageProvider('error');   editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'reg-image-slow':    { const p = makeImageProvider('slow');    editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'reg-image-timeout': { const p = makeImageProvider('timeout'); editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'reg-image-invalid': { const p = makeImageProvider('invalid'); editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'reg-image-nomatch': { const p = makeImageProvider('nomatch'); editor.setImageProvider(p); btn.classList.add('active'); setImgIndicator(p.name); break; }
+      case 'clear-image':       { editor.setImageProvider(null); setImgIndicator(''); addLog('info', 'Image provider cleared'); break; }
+
+      // Provider registration — ink
+      case 'reg-ink-success': { const p = makeInkProvider('success'); editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'reg-ink-error':   { const p = makeInkProvider('error');   editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'reg-ink-slow':    { const p = makeInkProvider('slow');    editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'reg-ink-timeout': { const p = makeInkProvider('timeout'); editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'reg-ink-invalid': { const p = makeInkProvider('invalid'); editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'reg-ink-nomatch': { const p = makeInkProvider('nomatch'); editor.setInkProvider(p); btn.classList.add('active'); setInkIndicator(p.name); break; }
+      case 'clear-ink':       { editor.setInkProvider(null); setInkIndicator(''); addLog('info', 'Ink provider cleared'); break; }
+
+      // Triggers — image
+      case 'recognise-image-utility': {
+        if (!sampleBlob) { addLog('error', 'Sample blob not yet loaded — try again'); break; }
+        try {
+          const result = await editor.recogniseImage(sampleBlob);
+          addLog('info', `recogniseImage() resolved → latex: "${result.latex}"`);
+        } catch (err) {
+          addLog('error', `recogniseImage() rejected → ${err.name}: ${err.message}`);
+        }
+        break;
+      }
+      case 'recognise-image-insert': {
+        if (!sampleBlob) { addLog('error', 'Sample blob not yet loaded — try again'); break; }
+        try {
+          const mf = await editor.insertFromImage(sampleBlob);
+          addLog('info', `insertFromImage() resolved → mf: ${mf ? `<math-field> value="${mf.value}"` : 'null'}`);
+        } catch (err) {
+          addLog('error', `insertFromImage() rejected → ${err.name}: ${err.message}`);
+        }
+        break;
+      }
+
+      // Triggers — ink
+      case 'recognise-ink-utility': {
+        try {
+          const result = await editor.recogniseInk(sampleStrokes);
+          addLog('info', `recogniseInk() resolved → latex: "${result.latex}"`);
+        } catch (err) {
+          addLog('error', `recogniseInk() rejected → ${err.name}: ${err.message}`);
+        }
+        break;
+      }
+      case 'recognise-ink-insert': {
+        try {
+          const mf = await editor.insertFromInk(sampleStrokes);
+          addLog('info', `insertFromInk() resolved → mf: ${mf ? `<math-field> value="${mf.value}"` : 'null'}`);
+        } catch (err) {
+          addLog('error', `insertFromInk() rejected → ${err.name}: ${err.message}`);
+        }
+        break;
+      }
+
+      // Cancel
+      case 'cancel-image': {
+        const c = editor.cancelRecognition('image');
+        addLog('info', `cancelRecognition('image') → ${c}`);
+        break;
+      }
+      case 'cancel-ink': {
+        const c = editor.cancelRecognition('ink');
+        addLog('info', `cancelRecognition('ink') → ${c}`);
+        break;
+      }
+      case 'cancel-all': {
+        const c = editor.cancelRecognition();
+        addLog('info', `cancelRecognition() → ${c}`);
+        break;
+      }
+
+      // Misc
+      case 'no-provider-test': {
+        const tmp = document.createElement('maths-editor');
+        document.body.appendChild(tmp);
+        try {
+          await tmp.recogniseImage(sampleBlob);
+        } catch (err) {
+          addLog('error', `No-provider test → ${err.name}: ${err.message}`);
+        } finally {
+          document.body.removeChild(tmp);
+        }
+        break;
+      }
+
+      case 'clear-editor': {
+        editor.clear();
+        addLog('info', 'Editor cleared');
+        break;
+      }
+
+      case 'test-editor-b': {
+        try {
+          await editorB.recogniseImage(sampleBlob);
+        } catch (err) {
+          addLog('error', `Editor B no-provider test → ${err.name}: ${err.message}`);
+        }
+        break;
+      }
+    }
+  });
+</script>
+</body>
+</html>

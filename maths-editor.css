@@ -1,0 +1,127 @@
+maths-editor {
+  /* ── Typography ───────────────────────────────────────────────────────────── */
+  --me-font-family:        system-ui, sans-serif;
+  --me-font-size:          1rem;
+  --me-font-size-small:    0.875rem;
+  --me-line-height:        1.6;
+
+  /* ── Colours ──────────────────────────────────────────────────────────────── */
+  --me-text-colour:          #1a1a1a;
+  --me-background:           #ffffff;
+  --me-selection-background: #b3d4fc;
+  --me-caret-colour:         #1a1a1a;
+  --me-placeholder-colour:   #888888;
+
+  /* ── Border and shape ─────────────────────────────────────────────────────── */
+  --me-border:        1px solid #e0e0e0;
+  --me-border-radius: 6px;
+
+  /* ── Focus ring ───────────────────────────────────────────────────────────── */
+  --me-focus-ring: 0 0 0 3px rgba(74, 144, 226, 0.4);
+
+  /* ── Layout ───────────────────────────────────────────────────────────────── */
+  --me-padding:    0.5rem 0.75rem;
+  --me-min-height: 3rem;
+
+  /* ── Motion ───────────────────────────────────────────────────────────────── */
+  --me-transition-duration: 120ms;
+
+  /* ── Math island ──────────────────────────────────────────────────────────── */
+  --me-math-island-background: transparent;
+  --me-math-island-border:     none;
+  --me-math-island-padding:    0.1em 0.3em;
+  --me-math-island-focus-ring: 0 0 0 2px rgba(74, 144, 226, 0.4);
+
+  display: block;
+}
+
+.me-content {
+  font-family: var(--me-font-family);
+  font-size: var(--me-font-size);
+  line-height: var(--me-line-height);
+  color: var(--me-text-colour);
+  background: var(--me-background);
+  padding: var(--me-padding);
+  border: var(--me-border);
+  border-radius: var(--me-border-radius);
+  min-height: var(--me-min-height);
+  caret-color: var(--me-caret-colour);
+  box-sizing: border-box;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  transition: box-shadow var(--me-transition-duration) ease;
+}
+
+.me-content:focus {
+  box-shadow: var(--me-focus-ring);
+  border-color: #4a90e2;
+}
+
+.me-content::selection {
+  background-color: var(--me-selection-background);
+}
+
+/* Placeholder shown via ::before when the me-empty class is present */
+maths-editor.me-empty .me-content::before {
+  content: attr(data-me-placeholder);
+  color: var(--me-placeholder-colour);
+  pointer-events: none;
+  display: block;
+  /* Sits in flow so it doesn't shift surrounding layout */
+}
+
+/* Readonly visual cue */
+.me-content[contenteditable="false"] {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: default;
+}
+
+/* ── Phase 3: Maths islands ───────────────────────────────────────────────── */
+
+.me-math-island {
+  display: inline-block;
+  vertical-align: baseline;
+  min-width: 1.5em;
+  line-height: 1;
+  user-select: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--me-border-radius);
+  padding: var(--me-math-island-padding);
+  --contains-highlight-background-color: var(--me-selection-background);
+}
+
+.me-math-island:focus-within {
+  outline: 2px solid rgba(74, 144, 226, 0.7);
+  outline-offset: 2px;
+}
+
+.me-math-island.me-island-selected {
+  background: var(--me-selection-background);
+  border-radius: 3px;
+}
+
+.me-math-island math-field {
+  display: inline-block;
+  pointer-events: auto;
+  user-select: auto;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* Hide MathLive's virtual keyboard toggle and hamburger menu buttons */
+math-field::part(virtual-keyboard-toggle),
+math-field::part(menu-toggle) {
+  display: none;
+}
+
+/* First-backspace/delete highlight — second press confirms deletion */
+.me-math-island.me-island-pending-delete {
+  outline: 2px solid #ef4444;
+  border-radius: 3px;
+  background: rgba(239, 68, 68, 0.10);
+}

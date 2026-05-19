@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catalogue health check — Maths Editor</title>
+  <link rel="stylesheet" href="../vendor/mathlive-static.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      margin: 0;
+      padding: 16px 24px;
+      color: #1a1a1a;
+      background: #f9fafb;
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+
+    /* ── Summary bar ────────────────────────────────────────────────────────── */
+    #summary-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+
+    .stat .label { color: #6b7280; }
+    .stat .value { font-weight: 700; }
+    .stat.error  { border-color: #ef4444; background: #fee2e2; }
+    .stat.ok     { border-color: #22c55e; background: #f0fdf4; }
+
+    /* ── Errors section ─────────────────────────────────────────────────────── */
+    #errors-section {
+      margin-bottom: 16px;
+    }
+
+    .error-list {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+
+    .error-list h3 { margin: 0 0 6px; font-size: 13px; color: #dc2626; }
+    .error-list ul { margin: 0; padding-left: 18px; }
+    .error-list li { margin: 2px 0; }
+
+    /* ── Category summary table ─────────────────────────────────────────────── */
+    #category-summary {
+      margin-bottom: 20px;
+    }
+
+    #category-summary h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 8px;
+    }
+
+    .cat-table {
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    .cat-table th, .cat-table td {
+      padding: 6px 14px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .cat-table th { background: #f3f4f6; font-weight: 600; color: #374151; }
+    .cat-table tr:last-child td { border-bottom: none; }
+    .cat-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ── Search + status ────────────────────────────────────────────────────── */
+    #search-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    #search-box {
+      flex: 1;
+      max-width: 360px;
+      padding: 7px 11px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    #search-box:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+
+    #visible-count {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    /* ── Entry grid ─────────────────────────────────────────────────────────── */
+    #grid-section h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 8px;
+    }
+
+    .entry-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    .entry-table th {
+      background: #f3f4f6;
+      font-weight: 600;
+      color: #374151;
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid #d1d5db;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .entry-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+
+    .entry-table tr:last-child td { border-bottom: none; }
+    .entry-table tr:nth-child(even) td { background: #fafafa; }
+
+    .entry-table tr.error-row td { background: #fee2e2 !important; }
+    .entry-table tr.hidden-row { display: none; }
+
+    .num-col { color: #9ca3af; width: 40px; text-align: right; }
+    .id-col  { font-family: monospace; white-space: nowrap; }
+    .cat-col { white-space: nowrap; }
+    .rendered { font-size: 1.1em; }
+    .latex-col { font-family: monospace; font-size: 11px; color: #6b7280; max-width: 280px; word-break: break-all; }
+
+    .badge {
+      display: inline-block;
+      background: #ef4444;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Catalogue health check</h1>
+
+<div id="summary-bar">
+  <!-- filled by script -->
+</div>
+
+<div id="errors-section">
+  <!-- filled by script if there are errors -->
+</div>
+
+<div id="category-summary">
+  <h2>Entries per category</h2>
+  <table class="cat-table" id="cat-table">
+    <thead><tr><th>Category</th><th>Count</th></tr></thead>
+    <tbody><!-- filled by script --></tbody>
+  </table>
+</div>
+
+<div id="grid-section">
+  <h2>Entry grid</h2>
+  <div id="search-row">
+    <input id="search-box" type="search" placeholder="Filter by id, name, category, or alias…" autocomplete="off">
+    <span id="visible-count"></span>
+  </div>
+  <table class="entry-table">
+    <thead>
+      <tr>
+        <th class="num-col">#</th>
+        <th>id</th>
+        <th>name</th>
+        <th>category</th>
+        <th>preview</th>
+        <th>latex template</th>
+        <th>raw latex</th>
+      </tr>
+    </thead>
+    <tbody id="entry-tbody">
+      <!-- filled by script -->
+    </tbody>
+  </table>
+</div>
+
+<script src="../vendor/compute-engine.min.js"></script>
+<script src="../vendor/mathlive.min.js"></script>
+<script src="../palette/catalogue.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const catalogue = window.MathsEditor.catalogue;
+
+  // ── 1. Validate ──────────────────────────────────────────────────────────────
+  const REQUIRED_FIELDS = ['id', 'name', 'latex', 'category', 'aliases', 'preview'];
+  const DISPLAY_CATEGORIES = [
+    'Numbers and constants',
+    'Basic operators',
+    'Powers, indices, roots',
+    'Fractions',
+    'Subscripts and superscripts',
+    'Greek letters',
+    'Trigonometry',
+    'Logarithms and exponentials',
+    'Calculus',
+    'Vectors',
+    'Complex numbers',
+    'Probability and statistics',
+    'Sets',
+    'Logic',
+    'Matrices',
+    'Geometry',
+    'Arrows',
+    'Accents and decorations',
+  ];
+
+  const idSeen = new Map();
+  const duplicateIds = [];
+  const missingFields = [];
+
+  catalogue.forEach((entry, idx) => {
+    const num = idx + 1;
+    REQUIRED_FIELDS.forEach(field => {
+      if (entry[field] === undefined || entry[field] === null) {
+        missingFields.push(`#${num} (${entry.id ?? '?'}): missing field "${field}"`);
+      }
+    });
+    if (entry.id !== undefined) {
+      if (idSeen.has(entry.id)) {
+        duplicateIds.push(`"${entry.id}" at positions #${idSeen.get(entry.id)} and #${num}`);
+      } else {
+        idSeen.set(entry.id, num);
+      }
+    }
+  });
+
+  // Category counts
+  const catCounts = {};
+  DISPLAY_CATEGORIES.forEach(c => { catCounts[c] = 0; });
+  catalogue.forEach(entry => {
+    const cat = entry.category;
+    if (cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+  });
+
+  const knownCategoryCount = Object.keys(catCounts).filter(c => catCounts[c] > 0).length;
+
+  // ── 2. Summary bar ──────────────────────────────────────────────────────────
+  const summaryBar = document.getElementById('summary-bar');
+
+  function stat(label, value, cls) {
+    const el = document.createElement('div');
+    el.className = 'stat' + (cls ? ' ' + cls : '');
+    el.innerHTML = `<span class="label">${label}: </span><span class="value">${value}</span>`;
+    return el;
+  }
+
+  summaryBar.appendChild(stat('Total entries', catalogue.length));
+  summaryBar.appendChild(stat('Categories', knownCategoryCount));
+  summaryBar.appendChild(stat('Duplicate IDs', duplicateIds.length, duplicateIds.length ? 'error' : 'ok'));
+  summaryBar.appendChild(stat('Missing fields', missingFields.length, missingFields.length ? 'error' : 'ok'));
+
+  // ── 3. Error lists ──────────────────────────────────────────────────────────
+  const errorsSection = document.getElementById('errors-section');
+
+  function errorBlock(title, items) {
+    const div = document.createElement('div');
+    div.className = 'error-list';
+    div.style.marginBottom = '12px';
+    const h3 = document.createElement('h3');
+    h3.textContent = title;
+    div.appendChild(h3);
+    const ul = document.createElement('ul');
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      ul.appendChild(li);
+    });
+    div.appendChild(ul);
+    return div;
+  }
+
+  if (duplicateIds.length) errorsSection.appendChild(errorBlock('Duplicate IDs', duplicateIds));
+  if (missingFields.length) errorsSection.appendChild(errorBlock('Missing fields', missingFields));
+
+  // ── 4. Category summary table ────────────────────────────────────────────────
+  const catTbody = document.querySelector('#cat-table tbody');
+  DISPLAY_CATEGORIES.forEach(cat => {
+    const count = catCounts[cat] || 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${cat}</td><td style="text-align:right">${count}</td>`;
+    catTbody.appendChild(tr);
+  });
+  // Any unexpected categories
+  Object.keys(catCounts).forEach(cat => {
+    if (!DISPLAY_CATEGORIES.includes(cat) && catCounts[cat] > 0) {
+      const tr = document.createElement('tr');
+      tr.style.background = '#fee2e2';
+      tr.innerHTML = `<td>${cat} <span style="color:#dc2626">(unknown category)</span></td><td style="text-align:right">${catCounts[cat]}</td>`;
+      catTbody.appendChild(tr);
+    }
+  });
+
+  // ── 5. Rendering helper ──────────────────────────────────────────────────────
+  function renderLatex(latex) {
+    try {
+      const markup = MathLive.convertLatexToMarkup(latex);
+      const hasError = /ML__error|class="ML__error"/.test(markup);
+      return { html: markup, error: hasError };
+    } catch (e) {
+      return { html: `<span style="color:#dc2626">${e.message}</span>`, error: true };
+    }
+  }
+
+  // ── 6. Entry grid ────────────────────────────────────────────────────────────
+  const tbody = document.getElementById('entry-tbody');
+  let renderErrorCount = 0;
+  const rows = [];
+
+  catalogue.forEach((entry, idx) => {
+    const num = idx + 1;
+    const tr = document.createElement('tr');
+
+    // Render preview
+    const previewResult = renderLatex(entry.preview || '');
+
+    // Render latex template with #? → a, #@ → x
+    const templateFilled = (entry.latex || '')
+      .replace(/#@/g, 'x')
+      .replace(/#\?/g, 'a');
+    const templateResult = renderLatex(templateFilled);
+
+    const hasError = previewResult.error || templateResult.error;
+    if (hasError) { tr.classList.add('error-row'); renderErrorCount++; }
+
+    const aliasStr = Array.isArray(entry.aliases) ? entry.aliases.join(', ') : '';
+
+    tr.innerHTML = `
+      <td class="num-col">${num}</td>
+      <td class="id-col">${entry.id ?? ''}</td>
+      <td>${entry.name ?? ''}</td>
+      <td class="cat-col">${entry.category ?? ''}</td>
+      <td class="rendered">${previewResult.html}${previewResult.error ? '<span class="badge">ERR</span>' : ''}</td>
+      <td class="rendered">${templateResult.html}${templateResult.error ? '<span class="badge">ERR</span>' : ''}</td>
+      <td class="latex-col">${(entry.latex ?? '').replace(/</g, '&lt;')}</td>
+    `;
+
+    tr.dataset.search = [
+      entry.id ?? '',
+      entry.name ?? '',
+      entry.category ?? '',
+      aliasStr,
+    ].join(' ').toLowerCase();
+
+    tbody.appendChild(tr);
+    rows.push(tr);
+  });
+
+  // Add render error count to summary bar
+  summaryBar.appendChild(stat('Render errors', renderErrorCount, renderErrorCount ? 'error' : 'ok'));
+
+  // ── 7. Search filtering ──────────────────────────────────────────────────────
+  const searchBox = document.getElementById('search-box');
+  const visibleCount = document.getElementById('visible-count');
+
+  function updateVisibleCount() {
+    const visible = rows.filter(r => !r.classList.contains('hidden-row')).length;
+    visibleCount.textContent = visible === rows.length
+      ? `Showing all ${rows.length} entries`
+      : `Showing ${visible} of ${rows.length} entries`;
+  }
+
+  searchBox.addEventListener('input', () => {
+    const q = searchBox.value.trim().toLowerCase();
+    rows.forEach(tr => {
+      if (!q || tr.dataset.search.includes(q)) {
+        tr.classList.remove('hidden-row');
+      } else {
+        tr.classList.add('hidden-row');
+      }
+    });
+    updateVisibleCount();
+  });
+
+  updateVisibleCount();
+})();
+</script>
+</body>
+</html>

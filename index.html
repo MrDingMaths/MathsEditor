@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maths Editor</title>
+  <link rel="stylesheet" href="vendor/mathlive-static.css">
+  <link rel="stylesheet" href="maths-editor.css">
+  <link rel="stylesheet" href="palette/palette.css">
+  <script src="vendor/compute-engine.min.js"></script>
+  <script src="vendor/mathlive.min.js"></script>
+  <script>MathfieldElement.soundsDirectory = null;</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: #f8f8f8;
+      color: #1a1a1a;
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0;
+      color: #1a1a1a;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .toolbar button {
+      padding: 0.35rem 0.85rem;
+      font-size: 0.875rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      color: #1a1a1a;
+    }
+
+    .toolbar button:hover {
+      background: #f0f0f0;
+      border-color: #aaa;
+    }
+
+    .toolbar button:active {
+      background: #e8e8e8;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+      gap: 1rem;
+    }
+
+    maths-editor {
+      --me-min-height: 16rem;
+      --me-font-size: 1rem;
+    }
+
+    .status-bar {
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .status-bar label {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .status-bar pre {
+      margin: 0;
+      background: #f0f0f0;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 0.4rem 0.6rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 0.78rem;
+      color: #444;
+      min-height: 1.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Maths Editor</h1>
+    <div class="toolbar">
+      <button id="btn-insert-math" type="button">Insert Math</button>
+      <button id="btn-clear" type="button">Clear</button>
+    </div>
+  </header>
+
+  <main>
+    <maths-editor id="editor" placeholder="Start typing…"></maths-editor>
+
+    <div class="status-bar">
+      <label for="out-value">Serialised value</label>
+      <pre id="out-value"></pre>
+    </div>
+  </main>
+
+  <script src="serialiser.js"></script>
+  <script src="clipboard.js"></script>
+  <script src="palette/catalogue.js"></script>
+  <script src="palette/palette.js"></script>
+  <script type="module" src="maths-editor.js"></script>
+
+  <script>
+    var editor   = document.getElementById('editor');
+    var outValue = document.getElementById('out-value');
+    var btnInsert = document.getElementById('btn-insert-math');
+    var btnClear  = document.getElementById('btn-clear');
+
+    editor.addEventListener('input', function (e) {
+      outValue.textContent = e.detail.value;
+    });
+
+    btnInsert.addEventListener('click', function () {
+      editor.focus();
+      editor.insertMath('');
+    });
+
+    btnClear.addEventListener('click', function () {
+      editor.clear();
+      outValue.textContent = '';
+      editor.focus();
+    });
+  </script>
+
+</body>
+</html>

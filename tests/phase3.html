@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 3 — maths islands test harness</title>
+  <!-- Load order is critical: Compute Engine → MathLive → config → maths-editor -->
+  <script src="../vendor/compute-engine.min.js"></script>
+  <script src="../vendor/mathlive.min.js"></script>
+  <script>MathfieldElement.soundsDirectory = null;</script>
+  <link rel="stylesheet" href="../vendor/mathlive-static.css">
+  <link rel="stylesheet" href="../maths-editor.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      max-width: 760px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #f5f5f5;
+    }
+
+    h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+
+    maths-editor {
+      --me-font-size: 0.9375rem;
+      --me-min-height: 5rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+    }
+
+    button {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #f9fafb;
+      font-size: 0.875rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #e5e7eb; }
+    button:active { background: #d1d5db; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      background: #d1fae5;
+      color: #065f46;
+      font-weight: 600;
+      font-size: 0.8125rem;
+    }
+
+    .status-pill.is-readonly {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    pre {
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 0.8125rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 2.5rem;
+      max-height: 12rem;
+      overflow-y: auto;
+    }
+
+    #event-log { color: #374151; }
+    .log-input       { color: #1d4ed8; }
+    .log-change      { color: #7c3aed; }
+    .log-maths-input { color: #059669; }
+
+    .kbd {
+      display: inline-block;
+      padding: 0.1em 0.4em;
+      border: 1px solid #d1d5db;
+      border-radius: 3px;
+      background: #f9fafb;
+      font-family: monospace;
+      font-size: 0.875em;
+      line-height: 1.4;
+    }
+
+    #islands-panel {
+      font-size: 0.8125rem;
+      color: #374151;
+    }
+
+    .island-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .island-row:last-child { border-bottom: none; }
+
+    .island-index {
+      font-weight: 700;
+      color: #6b7280;
+      min-width: 2rem;
+    }
+
+    .island-latex code,
+    .island-json code {
+      background: #f3f4f6;
+      padding: 0.1em 0.3em;
+      border-radius: 2px;
+      font-size: 0.8125rem;
+      word-break: break-all;
+    }
+
+    .no-islands {
+      color: #9ca3af;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Phase 3 — maths islands test harness</h1>
+<p>Exercises island insertion, focus handoff, and the new API on <code>&lt;maths-editor&gt;</code>.</p>
+
+<div class="card">
+  <h2>Keyboard model</h2>
+  <ul>
+    <li><span class="kbd">Tab</span> in text — inserts a maths island at the caret and focuses it</li>
+    <li><span class="kbd">Tab</span> inside maths — MathLive handles it (cycles placeholders)</li>
+    <li><span class="kbd">Esc</span> inside maths — exits to text mode, caret after island; island removed if empty</li>
+    <li><span class="kbd">←</span> / <span class="kbd">→</span> at boundary — exits island; island removed if empty</li>
+    <li>Click outside a focused maths island — exits; island removed if empty</li>
+    <li><span class="kbd">Backspace</span> immediately after an island, or <span class="kbd">Delete</span> immediately before — removes the island as a unit (browser default)</li>
+  </ul>
+</div>
+
+<div class="card">
+  <label for="editor">Editor under test</label>
+  <maths-editor id="editor" placeholder="Type here, Tab to insert maths…"></maths-editor>
+
+  <div class="controls">
+    <button id="btn-focus">Focus host</button>
+    <button id="btn-blur">Blur</button>
+    <button id="btn-clear">Clear</button>
+    <button id="btn-readonly">Toggle readonly</button>
+    <button id="btn-set-hello">Set "Hello world"</button>
+    <button id="btn-set-multi">Set multi-line sample</button>
+    <button id="btn-insert-empty">Insert math at caret</button>
+    <button id="btn-insert-half">Insert filled math (½)</button>
+    <button id="btn-get-value">Get .value</button>
+    <button id="btn-get-maths">Get .maths</button>
+  </div>
+
+  <div class="status-row">
+    Readonly:
+    <span id="readonly-pill" class="status-pill">false</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Live .value (updated on every <code>input</code> event)</h2>
+  <pre id="live-value"></pre>
+</div>
+
+<div class="card">
+  <h2>Maths islands (updated live on <code>maths-input</code> and <code>input</code>)</h2>
+  <div id="islands-panel"><span class="no-islands">— no islands —</span></div>
+</div>
+
+<div class="card">
+  <h2>Event log</h2>
+  <pre id="event-log">— no events yet —</pre>
+</div>
+
+<script type="module" src="../maths-editor.js"></script>
+<script>
+  // Elements
+  const editor       = document.getElementById('editor');
+  const liveValue    = document.getElementById('live-value');
+  const eventLog     = document.getElementById('event-log');
+  const islandsPanel = document.getElementById('islands-panel');
+  const readonlyPill = document.getElementById('readonly-pill');
+
+  // Keep log from growing unbounded
+  const MAX_LOG_LINES = 200;
+  let logLines = [];
+
+  function timestamp() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    const ms = String(d.getMilliseconds()).padStart(3, '0');
+    return `${hh}:${mm}:${ss}.${ms}`;
+  }
+
+  function appendLog(text, cssClass) {
+    if (logLines.length === 1 && logLines[0].text === '— no events yet —') logLines = [];
+    logLines.push({ text: `[${timestamp()}] ${text}`, cssClass });
+    if (logLines.length > MAX_LOG_LINES) logLines.shift();
+    renderLog();
+  }
+
+  function renderLog() {
+    eventLog.innerHTML = logLines.map(({ text, cssClass }) =>
+      `<span class="${cssClass}">${escapeHtml(text)}</span>`
+    ).join('\n');
+    eventLog.scrollTop = eventLog.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function syncReadonlyPill() {
+    const ro = editor.readonly;
+    readonlyPill.textContent = String(ro);
+    readonlyPill.classList.toggle('is-readonly', ro);
+  }
+
+  function updateIslandsPanel() {
+    const maths = editor.maths;
+    if (maths.length === 0) {
+      islandsPanel.innerHTML = '<span class="no-islands">— no islands —</span>';
+      return;
+    }
+    islandsPanel.innerHTML = maths.map((m, i) => `
+      <div class="island-row">
+        <span class="island-index">[${i}]</span>
+        <span class="island-latex">LaTeX: <code>${escapeHtml(m.latex)}</code></span>
+        <span class="island-json">MathJSON: <code>${escapeHtml(JSON.stringify(m.mathJson))}</code></span>
+      </div>
+    `).join('');
+  }
+
+  // Editor events
+  editor.addEventListener('input', (e) => {
+    liveValue.textContent = e.detail.value;
+    appendLog(`input  — value: ${JSON.stringify(e.detail.value)}`, 'log-input');
+    updateIslandsPanel();
+  });
+
+  editor.addEventListener('change', (e) => {
+    appendLog(`change — value: ${JSON.stringify(e.detail.value)}`, 'log-change');
+  });
+
+  editor.addEventListener('maths-input', (e) => {
+    const { index, latex, mathJson } = e.detail;
+    appendLog(
+      `maths-input — index:${index} latex:${JSON.stringify(latex)} mathJson:${JSON.stringify(mathJson)}`,
+      'log-maths-input'
+    );
+    updateIslandsPanel();
+  });
+
+  // Control panel
+  document.getElementById('btn-focus').addEventListener('click', () => {
+    editor.focus();
+  });
+
+  document.getElementById('btn-blur').addEventListener('click', () => {
+    editor.blur();
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    editor.clear();
+    liveValue.textContent = '';
+    updateIslandsPanel();
+    syncReadonlyPill();
+  });
+
+  document.getElementById('btn-readonly').addEventListener('click', () => {
+    editor.readonly = !editor.readonly;
+    syncReadonlyPill();
+  });
+
+  document.getElementById('btn-set-hello').addEventListener('click', () => {
+    editor.value = 'Hello world';
+    liveValue.textContent = editor.value;
+    updateIslandsPanel();
+    syncReadonlyPill();
+  });
+
+  document.getElementById('btn-set-multi').addEventListener('click', () => {
+    editor.value = 'Line one\nLine two\nLine three';
+    liveValue.textContent = editor.value;
+    updateIslandsPanel();
+    syncReadonlyPill();
+  });
+
+  document.getElementById('btn-insert-empty').addEventListener('click', () => {
+    editor.focus();
+    // Brief rAF so the editor can reclaim focus and restore its caret before
+    // insertMath reads the Selection. Without this, sel.rangeCount may be 0.
+    requestAnimationFrame(() => editor.insertMath(''));
+  });
+
+  document.getElementById('btn-insert-half').addEventListener('click', () => {
+    editor.focus();
+    requestAnimationFrame(() => editor.insertMath('\\frac{1}{2}'));
+  });
+
+  document.getElementById('btn-get-value').addEventListener('click', () => {
+    alert(JSON.stringify(editor.value));
+  });
+
+  document.getElementById('btn-get-maths').addEventListener('click', () => {
+    alert(JSON.stringify(editor.maths, null, 2));
+  });
+
+  // Initialise displays
+  syncReadonlyPill();
+  updateIslandsPanel();
+</script>
+</body>
+</html>

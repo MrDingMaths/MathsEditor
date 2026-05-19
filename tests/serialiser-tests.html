@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serialiser — pure-function test suite</title>
+  <script src="../serialiser.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      max-width: 760px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #f5f5f5;
+    }
+
+    h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+
+    #summary {
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    #summary.all-pass { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    #summary.has-fail { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    .test-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.875rem;
+    }
+
+    .test-row:last-child { border-bottom: none; }
+
+    .badge {
+      flex-shrink: 0;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .badge.pass { background: #d1fae5; color: #065f46; }
+    .badge.fail { background: #fee2e2; color: #991b1b; }
+
+    .test-label { flex: 1; }
+
+    .test-detail {
+      font-family: monospace;
+      font-size: 0.8125rem;
+      color: #6b7280;
+      word-break: break-all;
+    }
+
+    #results { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem 1rem; }
+  </style>
+</head>
+<body>
+
+<h1>Serialiser — pure-function test suite</h1>
+<p>Tests <code>MathsEditor.parse</code> and <code>MathsEditor.stringify</code> with no DOM or MathLive dependency.</p>
+
+<div id="summary"></div>
+<div id="results"></div>
+
+<script>
+  'use strict';
+
+  const { parse, stringify } = window.MathsEditor;
+
+  let passCount = 0;
+  let failCount = 0;
+  const rows = [];
+
+  function deepEqual(a, b) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  function assert(condition, label, detail) {
+    if (condition) {
+      passCount++;
+      rows.push({ pass: true, label, detail: detail || '' });
+    } else {
+      failCount++;
+      rows.push({ pass: false, label, detail: detail || '' });
+    }
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // ── Intercept console.warn so we can assert it was called ──────────────────
+  let warnCalled = false;
+  const origWarn = console.warn;
+  console.warn = function(...args) {
+    warnCalled = true;
+    origWarn.apply(console, args);
+  };
+
+  function resetWarn() { warnCalled = false; }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. Empty string ↔ empty segments
+  // ═══════════════════════════════════════════════════════════════════════════
+  assert(deepEqual(parse(''), []),
+    'parse("") → []');
+  assert(stringify([]) === '',
+    'stringify([]) → ""');
+  assert(stringify(parse('')) === '',
+    'stringify(parse("")) === ""');
+  assert(deepEqual(parse(stringify([])), []),
+    'parse(stringify([])) deep-equals []');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. Plain text only
+  // ═══════════════════════════════════════════════════════════════════════════
+  assert(deepEqual(parse('hello world'), [{ type: 'text', value: 'hello world' }]),
+    'parse("hello world") → single text segment');
+  assert(stringify([{ type: 'text', value: 'hello world' }]) === 'hello world',
+    'stringify([text]) → "hello world"');
+  assert(stringify(parse('hello world')) === 'hello world',
+    'stringify(parse("hello world")) identity');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3. Single maths island, no surrounding text
+  // ═══════════════════════════════════════════════════════════════════════════
+  assert(deepEqual(parse('$\\frac{1}{2}$'), [{ type: 'math', latex: '\\frac{1}{2}' }]),
+    'parse("$\\\\frac{1}{2}$") → single math segment');
+  assert(stringify([{ type: 'math', latex: '\\frac{1}{2}' }]) === '$\\frac{1}{2}$',
+    'stringify([math]) → "$\\\\frac{1}{2}$"');
+  assert(stringify(parse('$\\frac{1}{2}$')) === '$\\frac{1}{2}$',
+    'stringify(parse("$\\\\frac{1}{2}$")) identity');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 4. Single maths island with text on both sides
+  // ═══════════════════════════════════════════════════════════════════════════
+  const str4 = 'Area is $\\frac{1}{2}bh$ here.';
+  const segs4 = [
+    { type: 'text', value: 'Area is ' },
+    { type: 'math', latex: '\\frac{1}{2}bh' },
+    { type: 'text', value: ' here.' },
+  ];
+  assert(deepEqual(parse(str4), segs4),
+    'parse: text + math + text');
+  assert(stringify(segs4) === str4,
+    'stringify: text + math + text');
+  assert(stringify(parse(str4)) === str4,
+    'stringify(parse(...)) identity: text + math + text');
+  assert(deepEqual(parse(stringify(segs4)), segs4),
+    'parse(stringify(...)) deep-equals: text + math + text');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5. Multiple islands separated by text and newlines
+  // ═══════════════════════════════════════════════════════════════════════════
+  const str5 = 'Line 1: $x^2$\nLine 2: $y^2$\nDone.';
+  const segs5 = [
+    { type: 'text', value: 'Line 1: ' },
+    { type: 'math', latex: 'x^2' },
+    { type: 'text', value: '\nLine 2: ' },
+    { type: 'math', latex: 'y^2' },
+    { type: 'text', value: '\nDone.' },
+  ];
+  assert(deepEqual(parse(str5), segs5),
+    'parse: multiple islands with newlines');
+  assert(stringify(segs5) === str5,
+    'stringify: multiple islands with newlines');
+  assert(stringify(parse(str5)) === str5,
+    'stringify(parse(...)) identity: multiple islands with newlines');
+  assert(deepEqual(parse(stringify(segs5)), segs5),
+    'parse(stringify(...)) deep-equals: multiple islands with newlines');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 6. Escaped \$ in text decodes and re-encodes
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Input string contains \$ which decodes to literal $ in the text value.
+  const str6 = 'Price: \\$5';
+  const segs6 = [{ type: 'text', value: 'Price: $5' }];
+  assert(deepEqual(parse(str6), segs6),
+    'parse: \\$ in text decodes to literal $');
+  assert(stringify(segs6) === str6,
+    'stringify: literal $ in text encodes to \\$');
+  assert(stringify(parse(str6)) === str6,
+    'stringify(parse("Price: \\\\$5")) identity');
+  assert(deepEqual(parse(stringify(segs6)), segs6),
+    'parse(stringify([{text,"Price: $5"}])) deep-equals');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 7. $$ is silently dropped (empty maths segment)
+  // ═══════════════════════════════════════════════════════════════════════════
+  assert(deepEqual(parse('hello$$world'), [{ type: 'text', value: 'helloworld' }]),
+    'parse("hello$$world") → text merged, no empty math segment');
+  assert(deepEqual(parse('$$'), []),
+    'parse("$$") → []');
+  assert(deepEqual(parse('before $$'), [{ type: 'text', value: 'before ' }]),
+    'parse("before $$") → trailing empty drops, text preserved');
+  assert(deepEqual(parse('$$ after'), [{ type: 'text', value: ' after' }]),
+    'parse("$$ after") → leading empty drops, text preserved');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 8. Unbalanced trailing $ is normalised; console.warn is emitted
+  // ═══════════════════════════════════════════════════════════════════════════
+  resetWarn();
+  const r8a = parse('hello $unbalanced');
+  assert(deepEqual(r8a, [{ type: 'text', value: 'hello $unbalanced' }]),
+    'parse: unbalanced $ → treated as literal $ in text');
+  assert(warnCalled,
+    'parse: unbalanced $ → console.warn was called');
+
+  resetWarn();
+  const r8b = parse('$ok$ and $unbal');
+  assert(deepEqual(r8b, [
+    { type: 'math', latex: 'ok' },
+    { type: 'text', value: ' and $unbal' },
+  ]),
+    'parse: balanced + unbalanced → balanced island kept, tail as literal text');
+  assert(warnCalled,
+    'parse: balanced + unbalanced → console.warn emitted');
+
+  // round-trip of normalised form
+  resetWarn();
+  const normalised8 = stringify(parse('hello $unbalanced'));
+  assert(normalised8 === 'hello \\$unbalanced',
+    'stringify(parse("hello $unbalanced")) === "hello \\\\$unbalanced"');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 9. Newlines preserved through round-trip
+  // ═══════════════════════════════════════════════════════════════════════════
+  const str9 = 'line1\nline2\nline3';
+  assert(deepEqual(parse(str9), [{ type: 'text', value: 'line1\nline2\nline3' }]),
+    'parse: newlines preserved in text value');
+  assert(stringify(parse(str9)) === str9,
+    'stringify(parse(...)) identity: newlines');
+  assert(deepEqual(parse(stringify([{ type: 'text', value: 'a\nb' }])),
+    [{ type: 'text', value: 'a\nb' }]),
+    'parse(stringify([text with newline])) round-trip');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10. LaTeX containing \$ inside a maths island round-trips intact
+  //     and the closing delimiter is recognised correctly
+  // ═══════════════════════════════════════════════════════════════════════════
+  // The LaTeX \$ is inside the maths island — the parser must not treat it as
+  // the closing delimiter (because it is preceded by an odd number of backslashes).
+  const str10 = '$\\$100$';  // LaTeX content: \$100
+  const segs10 = [{ type: 'math', latex: '\\$100' }];
+  assert(deepEqual(parse(str10), segs10),
+    'parse: \\$ inside maths island is not treated as closing delimiter');
+  assert(stringify(segs10) === str10,
+    'stringify: maths latex emitted verbatim including \\$');
+  assert(stringify(parse(str10)) === str10,
+    'stringify(parse("$\\\\$100$")) identity');
+  assert(deepEqual(parse(stringify(segs10)), segs10),
+    'parse(stringify([math with \\$])) deep-equals');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 11. LaTeX containing \\$ (two backslashes then $) — even/odd rule
+  //     The \\ contributes 2 backslashes (even) so the $ IS a delimiter.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // String: $a\\$  — inside the math island we have "a\\" then $
+  // The $ after \\ has 2 backslashes before it (even) → closes the island.
+  const str11 = '$a\\\\$';    // chars: $, a, \, \, $
+  const segs11 = [{ type: 'math', latex: 'a\\\\' }];
+  assert(deepEqual(parse(str11), segs11),
+    'parse: \\\\$ inside maths — even backslash count so $ is closing delimiter');
+  assert(stringify(segs11) === str11,
+    'stringify: \\\\$ in math emitted verbatim');
+  assert(stringify(parse(str11)) === str11,
+    'stringify(parse("$a\\\\\\\\$")) identity');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 12. Battery: stringify(parse(x)) === x for well-formed strings
+  // ═══════════════════════════════════════════════════════════════════════════
+  const battery12 = [
+    '',
+    'plain text',
+    '$x$',
+    'before $x$ after',
+    '$x$ $y$',
+    'a $b$ c $d$ e',
+    'line1\nline2',
+    '$x^2 + y^2$\n$z^2$',
+    'text with \\$ escaped dollar',
+    '$\\frac{a}{b}$',
+    '$\\$100$ profit',
+    'a $b$ c\n$d$\ne',
+  ];
+
+  for (const x of battery12) {
+    resetWarn();
+    assert(stringify(parse(x)) === x,
+      `battery-12: stringify(parse(…)) identity for: ${JSON.stringify(x)}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 13. Battery: parse(stringify(s)) deep-equals s for well-formed segment arrays
+  // ═══════════════════════════════════════════════════════════════════════════
+  const battery13 = [
+    [],
+    [{ type: 'text', value: 'hello' }],
+    [{ type: 'math', latex: 'x' }],
+    [{ type: 'text', value: 'a' }, { type: 'math', latex: 'b' }, { type: 'text', value: 'c' }],
+    [{ type: 'text', value: 'line1\nline2' }],
+    [{ type: 'math', latex: '\\frac{1}{2}' }],
+    [{ type: 'text', value: 'Price: $5 and $10' }],
+    [{ type: 'text', value: 'a\nb' }, { type: 'math', latex: 'x^2' }],
+    [{ type: 'math', latex: '\\$100' }, { type: 'text', value: ' profit' }],
+  ];
+
+  for (const s of battery13) {
+    resetWarn();
+    assert(deepEqual(parse(stringify(s)), s),
+      `battery-13: parse(stringify(s)) deep-equals s for: ${JSON.stringify(s)}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Render results
+  // ═══════════════════════════════════════════════════════════════════════════
+  const summary = document.getElementById('summary');
+  const total = passCount + failCount;
+  summary.textContent = `${passCount} passed, ${failCount} failed — ${total} total`;
+  summary.className = failCount === 0 ? 'all-pass' : 'has-fail';
+
+  const resultsEl = document.getElementById('results');
+  resultsEl.innerHTML = rows.map(r => `
+    <div class="test-row">
+      <span class="badge ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span>
+      <span class="test-label">${escHtml(r.label)}</span>
+      ${r.detail ? `<span class="test-detail">${escHtml(r.detail)}</span>` : ''}
+    </div>
+  `).join('');
+</script>
+</body>
+</html>

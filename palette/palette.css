@@ -1,0 +1,160 @@
+.me-palette[hidden] {
+  display: none;
+}
+
+.me-palette {
+  /* ── Layout tokens ────────────────────────────────────────────────────────── */
+  --me-palette-width:      320px;
+  --me-palette-max-height: 360px;
+  --me-border-radius:      6px;
+
+  /* ── Palette colours ──────────────────────────────────────────────────────── */
+  --me-palette-background:  #ffffff;
+  --me-palette-border:      1px solid #e0e0e0;
+  --me-palette-shadow:      0 4px 16px rgba(0, 0, 0, 0.12);
+  --me-palette-text-colour: #1a1a1a;
+
+  /* ── Highlight (keyboard-selected item) ───────────────────────────────────── */
+  --me-palette-highlight-background:  #e8f0fe;
+  --me-palette-highlight-text-colour: #1a1a1a;
+
+  /* ── Group header ─────────────────────────────────────────────────────────── */
+  --me-palette-group-text-colour: #6a737d;
+  --me-palette-group-padding:     0.3rem 0.75rem 0.15rem;
+
+  /* ── Search input ─────────────────────────────────────────────────────────── */
+  --me-palette-search-background:         #ffffff;
+  --me-palette-search-border:             1px solid #e0e0e0;
+  --me-palette-search-text-colour:        #1a1a1a;
+  --me-palette-search-placeholder-colour: #888888;
+
+  /* ── Item ─────────────────────────────────────────────────────────────────── */
+  --me-palette-item-padding:          0.3rem 0.75rem;
+  --me-palette-item-hover-background: #f0f0f0;
+
+  /* ── Preview thumbnail ────────────────────────────────────────────────────── */
+  --me-palette-preview-background: #f3f4f6;
+  --me-palette-preview-colour:     #1a1a1a;
+
+  /* ── Cross-cutting (mirrored from maths-editor.css; palette is body-level) ── */
+  --me-font-size-small:     0.875rem;
+  --me-transition-duration: 120ms;
+
+  position: fixed;
+  z-index: 9999;
+  width: var(--me-palette-width);
+  background: var(--me-palette-background);
+  border: var(--me-palette-border);
+  border-radius: var(--me-border-radius);
+  box-shadow: var(--me-palette-shadow);
+  color: var(--me-palette-text-colour);
+  font-family: system-ui, sans-serif;
+  font-size: var(--me-font-size-small);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Search input ─────────────────────────────────────────────────────────── */
+
+.me-palette-search {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: var(--me-palette-search-border);
+  border-radius: 0;
+  background: var(--me-palette-search-background);
+  color: var(--me-palette-search-text-colour);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.me-palette-search::placeholder {
+  color: var(--me-palette-search-placeholder-colour);
+}
+
+/* ── Results list ─────────────────────────────────────────────────────────── */
+
+.me-palette-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow-y: auto;
+  max-height: var(--me-palette-max-height);
+  flex: 1 1 auto;
+}
+
+/* ── Group headers ────────────────────────────────────────────────────────── */
+
+.me-palette-group {
+  padding: var(--me-palette-group-padding);
+  font-size: var(--me-font-size-small);
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  color: var(--me-palette-group-text-colour);
+  pointer-events: none;
+  user-select: none;
+}
+
+.me-palette-group:not(:first-child) {
+  border-top: var(--me-palette-border);
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+/* ── Items ────────────────────────────────────────────────────────────────── */
+
+.me-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: var(--me-palette-item-padding);
+  cursor: pointer;
+  user-select: none;
+}
+
+.me-palette-item[hidden] {
+  display: none;
+}
+
+.me-palette-item:hover {
+  background: var(--me-palette-item-hover-background);
+}
+
+.me-palette-item[aria-selected="true"] {
+  background: var(--me-palette-highlight-background);
+  color: var(--me-palette-highlight-text-colour);
+}
+
+/* ── Preview ──────────────────────────────────────────────────────────────── */
+
+.me-palette-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  min-height: 1.5rem;
+  background: var(--me-palette-preview-background);
+  border-radius: 3px;
+  padding: 0.1em 0.2em;
+  font-size: 0.8125rem;
+  overflow: hidden;
+  color-scheme: light;
+  color: var(--me-palette-preview-colour);
+}
+
+.me-palette-item[aria-selected="true"] .me-palette-preview {
+  background: var(--me-palette-highlight-background);
+}
+
+/* ── Name ─────────────────────────────────────────────────────────────────── */
+
+.me-palette-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

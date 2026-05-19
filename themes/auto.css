@@ -1,0 +1,79 @@
+/*
+ * Maths Editor — Auto theme (system preference)
+ *
+ * Usage:
+ *   Load this file alongside maths-editor.css and palette/palette.css.
+ *   No data-theme attribute is required — switching follows the OS preference.
+ *
+ * Trade-off vs themes/dark.css:
+ *   This file uses @media (prefers-color-scheme: dark) which has lower
+ *   specificity than the [data-theme="dark"] selectors in dark.css.
+ *   If you load both files, dark.css will always win regardless of the
+ *   OS preference. Recommend loading one or the other, not both.
+ *
+ *   Use dark.css when you need explicit per-element control via data-theme.
+ *   Use auto.css when you want the editor to follow the OS setting with no
+ *   JavaScript or attribute management required.
+ *
+ * Per-instance theming:
+ *   auto.css has no per-instance mechanism. To theme individual editors
+ *   independently of the OS, use dark.css with data-theme attributes instead.
+ */
+
+@media (prefers-color-scheme: dark) {
+  /* ── Editor ───────────────────────────────────────────────────────────────── */
+  maths-editor {
+    color-scheme: dark;
+
+    --me-text-colour:          #e6e6e6;
+    --me-background:           #1c1f26;
+    --me-selection-background: #2c5282;
+    --me-caret-colour:         #e6e6e6;
+    --me-placeholder-colour:   #6a737d;
+    --me-border:               1px solid #2d333b;
+    --me-focus-ring:           0 0 0 3px rgba(88, 166, 255, 0.4);
+
+    --me-math-island-background: transparent;
+    --me-math-island-border:     none;
+
+    /* MathLive internals — set here so the math-field matches the dark shell */
+    --contains-highlight-background-color: #2c5282;
+  }
+
+  /* Force math-field content to render in dark colours. */
+  maths-editor .me-math-island math-field {
+    color: #e6e6e6;
+    color-scheme: dark;
+  }
+
+  /* ── Palette ──────────────────────────────────────────────────────────────── */
+  .me-palette {
+    color-scheme: dark;
+
+    --me-palette-background:  #22272e;
+    --me-palette-border:      1px solid #373e47;
+    --me-palette-shadow:      0 4px 16px rgba(0, 0, 0, 0.4);
+    --me-palette-text-colour: #e6e6e6;
+
+    --me-palette-highlight-background:  #2d3340;
+    --me-palette-highlight-text-colour: #e6e6e6;
+
+    --me-palette-group-text-colour: #8b949e;
+
+    --me-palette-search-background:         #1c1f26;
+    --me-palette-search-border:             1px solid #373e47;
+    --me-palette-search-text-colour:        #e6e6e6;
+    --me-palette-search-placeholder-colour: #6a737d;
+
+    --me-palette-item-hover-background: #2d333b;
+
+    --me-palette-preview-background: #2d333b;
+    --me-palette-preview-colour:     #e6e6e6;
+  }
+
+  /* Preview thumbnails in the dark palette also need dark rendering. */
+  .me-palette .me-palette-preview {
+    color-scheme: dark;
+    color: #e6e6e6;
+  }
+}
