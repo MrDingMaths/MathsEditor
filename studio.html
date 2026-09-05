@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MathsEditor document studio</title>
+<link rel="stylesheet" href="vendor/mathlive-static.css"><link rel="stylesheet" href="document-editor.css">
+<script src="vendor/compute-engine.min.js"></script><script src="vendor/mathlive.min.js"></script><script>MathfieldElement.soundsDirectory=null;MathfieldElement.fontsDirectory='./vendor/fonts';</script>
+<style>body{margin:0;background:#eaf0f5;color:#203447;font:16px/1.5 system-ui}main{max-width:1050px;margin:32px auto;padding:0 24px}header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}h1{margin-right:auto}button{padding:10px}#status{color:#36536b}@media print{body{background:white}main{margin:0;padding:0;max-width:none}header,#status{display:none}@page{size:A4;margin:15mm}}</style>
+</head><body><main><header><h1>MathsEditor</h1><button id="save">Save document</button><button id="open">Open document</button><button id="print">Print preview</button><input type="file" id="file" accept="application/json" hidden></header>
+<p id="status">Text, maths, tables and images are saved together. Select content to show its layout controls.</p><maths-editor structured></maths-editor></main>
+<script src="serialiser.js"></script><script src="clipboard.js"></script><script type="module" src="maths-editor.js"></script>
+<script type="module">
+import {fromSource,template} from './document-model.mjs';
+await customElements.whenDefined('maths-editor');const editor=document.querySelector('maths-editor');
+const initial=fromSource('Compare **like bases** before applying an index law.\n\n$x^3 \\times x^4 = x^7$\n\n| Example | Guided practice |\n| --- | --- |\n| $3x+2=11$ | $5x+4=19$ |');initial.blocks.push(template('worked-rows'));editor.document=initial;
+editor.addEventListener('document-change',()=>document.querySelector('#status').textContent='Unsaved changes');
+document.querySelector('#save').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(editor.document,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='maths-document.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);document.querySelector('#status').textContent='Document downloaded';};
+document.querySelector('#open').onclick=()=>document.querySelector('#file').click();
+document.querySelector('#file').onchange=async e=>{try{editor.document=JSON.parse(await e.target.files[0].text());document.querySelector('#status').textContent='Document loaded';}catch(error){document.querySelector('#status').textContent=error.message;}};
+document.querySelector('#print').onclick=()=>window.print();
+</script></body></html>

@@ -1,3 +1,5 @@
+import { toSource, fromSource } from './document-model.mjs';
+import { DocumentEditor } from './document-editor.js';
 // @ts-check
 'use strict';
 
@@ -62,7 +64,8 @@ class MathsEditor extends HTMLElement {
   connectedCallback() {
     if (this.#connected) return;
     this.#connected = true;
-    this.#buildDOM();
+    if (this.hasAttribute('structured')) { this.documentController = new DocumentEditor(this); this._content = this.documentController.surface; }
+    else this.#buildDOM();
   }
 
   disconnectedCallback() {
@@ -139,12 +142,21 @@ class MathsEditor extends HTMLElement {
     }
   }
 
+  get document() { return this.documentController ? structuredClone(this.documentController.doc) : null; }
+
+  set document(value) {
+    if (!this.documentController) { this.disconnectedCallback(); this.documentController = new DocumentEditor(this, value); this._content = this.documentController.surface; }
+    else this.documentController.set(value);
+  }
+
   get value() {
+    if (this.documentController) return toSource(this.documentController.doc);
     if (!this._content) return '';
     return this.#serializeValue();
   }
 
   set value(val) {
+    if (this.documentController) { this.documentController.set(fromSource(String(val ?? ''))); return; }
     if (!this._content) return;
     this.#setContentSilently(String(val ?? ''));
   }
@@ -173,11 +185,13 @@ class MathsEditor extends HTMLElement {
   }
 
   clear() {
+    if (this.documentController) { this.documentController.set(fromSource('')); this.documentController.emit(); return; }
     if (!this._content) return;
     this.#setContentSilently('');
   }
 
   insertMath(latex = '') {
+    if (this.documentController) return this.documentController.insertMath(latex);
     if (!this._content || this.readonly) return null;
 
     const island = document.createElement('span');

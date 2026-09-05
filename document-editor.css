@@ -1,0 +1,10 @@
+.me-document-editor { display:block; color:#24364b; background:white; border:1px solid #bdcbd8; border-radius:8px; overflow:hidden; font:15px/1.4 system-ui,sans-serif }
+.me-document-editor .me-toolbar,.me-document-editor .me-properties { display:flex; flex-wrap:wrap; gap:6px; padding:8px; background:#f1f5f9; border-bottom:1px solid #dce4ec }
+.me-document-editor button,.me-document-editor input,.me-document-editor select { font:inherit; border:1px solid #c1ceda; border-radius:4px; padding:4px 7px; background:white; color:inherit }
+.me-document-editor button { cursor:pointer }.me-document-editor button:disabled { opacity:.4;cursor:default }
+.me-document-editor .me-properties { font-size:12px }.me-document-editor .me-properties input[type=number] { width:64px }
+.me-document-editor .me-content { padding:16px; min-height:180px; outline:none; overflow-wrap:anywhere }.me-document-editor .me-content:focus { box-shadow:inset 0 0 0 2px #3681ac }
+.me-document-editor .me-content p { min-height:1em }.me-document-editor math-field { min-width:24px; background:transparent; border:0; font-size:1.1em; outline:none }
+.me-document-editor [data-slot] { min-height:60px; outline:1px dashed #c2cedb;padding:3px }
+.me-document-editor figure { cursor:pointer }.me-document-editor img { max-width:100% }.me-document-editor output { display:block;color:#9b321d;padding:0 8px }
+@media print { .me-document-editor .me-toolbar,.me-document-editor .me-properties,.me-document-editor output {display:none}.me-document-editor {border:0}.me-document-editor [data-slot] {outline:0}.me-document-editor {break-inside:auto}.me-layout,figure,tr {break-inside:avoid} }
