@@ -64,11 +64,12 @@ class MathsEditor extends HTMLElement {
   connectedCallback() {
     if (this.#connected) return;
     this.#connected = true;
-    if (this.hasAttribute('structured')) { this.documentController = new DocumentEditor(this); this._content = this.documentController.surface; }
+    if (this.hasAttribute('structured')) { this.documentController = new DocumentEditor(this,this.getAttribute('value')??''); this._content = this.documentController.surface; }
     else this.#buildDOM();
   }
 
   disconnectedCallback() {
+    this.documentController?.destroy();
     if (!this._content) return;
     document.removeEventListener('selectionchange', this._onSelectionChange);
     this.removeEventListener('keydown', this._onKeydown, true);
@@ -97,12 +98,14 @@ class MathsEditor extends HTMLElement {
         if (this._content) this._content.dataset.mePlaceholder = next ?? '';
         break;
       case 'readonly':
+        if (this.documentController) { this.documentController.updateReadonly(); break; }
         // Attribute present (any value) means readonly
         if (this._content) {
           this._content.contentEditable = next === null ? 'true' : 'false';
         }
         break;
       case 'value':
+        if (this.documentController) { this.value=next??''; break; }
         // Only set content from attribute during initial upgrade (before
         // connectedCallback has run). After connection, use the property setter.
         if (!this.#connected && next !== null) {

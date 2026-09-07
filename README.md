@@ -802,3 +802,32 @@ Open `tests/phase9.html` directly in a browser. The harness covers:
 - In-flight status display updated every 100 ms.
 - Two-editor isolation test confirming providers are per-instance.
 - Event log with timestamped detail payloads for all four lifecycle events.
+
+
+## Structured document controls — 1.3.0
+
+Document version 1 now optionally supports paragraph tabStops (position in mm,
+left/center/right/decimal alignment, none/dots/underline leaders), inline tab
+nodes, layout tracks, and table annotation thicknessMm/curveMm/distanceMm/heads.
+Omitted fields preserve existing rendering. Tab rulers and exact positions share
+the measured tab-layout.mjs renderer with studio previews and printing.
+
+Tab inserts a prose tab; Escape then Tab exits the editing surface. MathLive keeps
+its own keyboard navigation. Select dotted text and use Replace selected dots
+with tab leader to align the gap and answer line separately. Plain export retains
+tab characters but reports the loss of stop positioning, leaders and styling.
+
+Common contextual table properties provide shading, text and border colours,
+border thickness, mixed-value display and selected-cell/row/column/table scopes.
+Whole-table changes replace cell border overrides. Arrow SVGs are selectable
+with pointer or keyboard and remain attached to stable table cell identities.
+Custom curves reserve label space; the default geometry remains unchanged.
+
+Host integrations can set question-context and handle apply-question-tabs with
+detail.tabStops to apply paragraph settings to related question parts in their
+own Save/Cancel transaction. This application-specific action is otherwise hidden.
+The default editor interface and rich-document persistence APIs remain supported.
+
+## 1.3.1 arrow rendering
+Table annotations now use local CSS-pixel geometry at every paper zoom, separated adjacent endpoints and arrowheads aligned to smooth curve tangents. Cell IDs, labels and authored style fields are retained. The existing document-model tests include neighbour separation and curve-direction regressions.
+

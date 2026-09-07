@@ -42,6 +42,9 @@ window.MathsEditor.serialiseSelection = function serialiseSelection(range, hostE
         addText(node.textContent.slice(start, end));
       } else if (node.nodeName === 'BR') {
         addText('\n');
+      } else if (node.nodeType === Node.ELEMENT_NODE && node.matches('[data-type="inline-image"],img')) {
+        const img = node.matches('img') ? node : node.querySelector('img');
+        addText(`[Image ${JSON.stringify(img?.alt ?? '')} source=${JSON.stringify(img?.getAttribute('src') ?? '')}]`);
       } else if (node.nodeType === Node.ELEMENT_NODE
                  && /** @type {Element} */ (node).classList.contains('me-math-island')) {
         const mf = node.querySelector('math-field');

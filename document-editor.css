@@ -8,3 +8,57 @@
 .me-document-editor [data-slot] { min-height:60px; outline:1px dashed #c2cedb;padding:3px }
 .me-document-editor figure { cursor:pointer }.me-document-editor img { max-width:100% }.me-document-editor output { display:block;color:#9b321d;padding:0 8px }
 @media print { .me-document-editor .me-toolbar,.me-document-editor .me-properties,.me-document-editor output {display:none}.me-document-editor {border:0}.me-document-editor [data-slot] {outline:0}.me-document-editor {break-inside:auto}.me-layout,figure,tr {break-inside:avoid} }
+
+/* Keep document maths focused on direct editing. */
+.me-document-editor math-field::part(virtual-keyboard-toggle),
+.me-document-editor math-field::part(menu-toggle) { display:none; }
+
+.me-column-handle{position:absolute;top:0;bottom:0;width:10px;transform:translateX(-50%);padding:0;border:0;background:transparent;cursor:col-resize;z-index:3;touch-action:none}
+.me-column-handle:hover,.me-column-handle:focus-visible{background:#268cff66;outline:2px solid #268cff}
+.me-content [data-type="inline-image"]:focus{outline:2px solid #268cff}
+.me-properties input[aria-invalid="true"]{outline:2px solid #b32121}
+@media print{[data-resize-handles]{display:none!important}}
+
+/* Optional workspace controls; the default standalone interface is unchanged. */
+.me-document-editor[controls="contextual"]{font-size:16px;background:var(--panel,#fff);color:var(--text,#24364b);overflow:visible}
+.me-document-editor[controls="contextual"] .me-toolbar,.me-document-editor[controls="contextual"] .me-properties{background:var(--app-canvas,#f1f5f9);color:var(--text,#24364b)}
+.me-document-editor[controls="contextual"] .me-format,.me-document-editor[controls="contextual"] .me-insert>div,.me-document-editor[controls="contextual"] .me-common-properties,.me-document-editor[controls="contextual"] .me-properties details>div{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.me-document-editor[controls="contextual"] .me-format strong{font-size:14px;margin-right:6px}
+.me-document-editor[controls="contextual"] summary{cursor:pointer;min-height:36px;display:flex;align-items:center;padding:0 10px;font-size:14px;border:1px solid #a5b5c5;border-radius:4px}
+.me-document-editor[controls="contextual"] details[open]>div{padding-top:8px}
+.me-document-editor[controls="contextual"] .me-properties{display:block;font-size:14px}
+.me-document-editor[controls="contextual"] .me-properties-title{display:block;margin-bottom:8px}
+.me-document-editor[controls="contextual"] .me-properties details{margin-top:8px}
+.me-document-editor[controls="contextual"] .me-properties label{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.me-document-editor[controls="contextual"] button,.me-document-editor[controls="contextual"] input,.me-document-editor[controls="contextual"] select{min-height:36px;font-size:14px;background:var(--panel,#fff);color:inherit;max-width:100%}
+.me-document-editor[controls="contextual"] .me-properties input[type=number]{width:85px}
+.me-document-editor[controls="contextual"] .me-content{background:white;color:#24364b;min-height:280px}
+.me-document-editor[controls="contextual"] .me-column-handle{min-height:36px;min-width:12px}
+@media(max-width:600px){.me-document-editor[controls="contextual"] button,.me-document-editor[controls="contextual"] input,.me-document-editor[controls="contextual"] select,.me-document-editor[controls="contextual"] summary{min-height:44px}}
+.me-document-editor[controls="contextual"] .me-content math-field{color:inherit;color-scheme:light;--caret-color:#24364b;--selection-background-color:#bddbf5}.me-document-editor[controls="contextual"] .me-column-handle{padding:0;background:#397cbd;opacity:.45;border:0;border-radius:2px}.me-document-editor[controls="contextual"] .me-column-handle:focus-visible,.me-document-editor[controls="contextual"] .me-column-handle:hover{opacity:1}
+
+.me-document-editor[controls="contextual"] .me-format{display:block}.me-document-editor[controls="contextual"] .me-format>div{display:flex;gap:8px;flex-wrap:wrap}.me-document-editor[controls="contextual"] .me-format:not([open])>div{display:none}
+@media(min-width:1000px){.me-document-editor[controls="contextual"] .me-format{display:flex}.me-document-editor[controls="contextual"] .me-format>summary{float:left;border:0;font-weight:700}.me-document-editor[controls="contextual"] .me-format[open]>div{display:inline-flex;padding:0}.me-document-editor[controls="contextual"] .me-format>summary::marker{content:''}}
+@media(pointer:coarse){.me-document-editor[controls="contextual"] button,.me-document-editor[controls="contextual"] input,.me-document-editor[controls="contextual"] select,.me-document-editor[controls="contextual"] summary{min-height:44px}}
+
+.me-document-editor .me-content {color:var(--document-ink,#24364b);font-family:var(--document-font,inherit);font-size:var(--document-size,11pt)}
+.me-tab-ruler{position:relative;height:44px;width:100%;min-width:180px;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(10% - 1px),#b5c3d5 10%);border-bottom:1px solid #94a3b8;margin:12px 0}
+.me-tab-ruler button{position:absolute;transform:translateX(-50%);min-width:24px;padding:2px;bottom:0;touch-action:none}
+.me-properties .me-tab-properties{width:100%;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.me-properties input[type=color]{width:40px;padding:2px}.me-properties input[type=text]{max-width:160px}
+[data-table-annotations] [role=button]{cursor:pointer;pointer-events:stroke;outline:none}[data-table-annotations] [role=button]:focus{filter:drop-shadow(0 0 3px #102a43)}
+
+.me-properties .me-colour-swatches{display:flex;flex-wrap:wrap;gap:5px;width:100%;margin:-3px 0 6px}.me-properties .me-colour-swatches button{width:25px;height:25px;min-width:25px;min-height:25px;padding:0;border:1px solid #8392a3;border-radius:4px}.me-properties .me-colour-swatches button[aria-pressed=true]{outline:2px solid #24364b;outline-offset:2px}.me-properties .me-colour-swatches button:focus-visible{outline:3px solid #268cff;outline-offset:2px}
+
+/* Context menus float over the paper; selection never changes its position. */
+.me-document-editor[controls="contextual"] .me-toolbar{position:relative;z-index:12;flex-wrap:nowrap}
+.me-document-editor[controls="contextual"] .me-properties{position:relative;z-index:11;min-height:53px;box-sizing:border-box}
+.me-document-editor[controls="contextual"] .me-toolbar>details{position:static;display:block}
+.me-document-editor[controls="contextual"] .me-toolbar>details>summary{float:none;border:1px solid #a5b5c5;font-weight:600}
+.me-document-editor[controls="contextual"] .me-toolbar>details[open]>div,
+.me-document-editor[controls="contextual"] .me-selection-menu[open]>.me-property-panel{position:absolute;top:100%;left:0;right:0;display:flex;flex-wrap:wrap;gap:8px;padding:12px;margin:0;max-height: min(55vh,440px);overflow:auto;box-sizing:border-box;background:var(--panel,#fff);border:1px solid #a5b5c5;border-radius:6px;box-shadow:0 8px 24px #17203326}
+.me-document-editor[controls="contextual"] .me-properties>.me-selection-menu{margin:0}
+.me-document-editor[controls="contextual"] .me-selection-menu[open]>.me-property-panel{display:block}
+.me-document-editor[controls="contextual"] .me-tab-default{margin:0;flex-basis:100%;color:inherit}
+.me-document-editor[controls="contextual"] .me-properties .me-common-properties{align-items:flex-start}
+.me-document-editor[controls="contextual"] .me-selection-menu:not([open])>.me-property-panel{display:none}
